@@ -20,3 +20,4 @@ for file in files:
         img_list.append(sized)
 array = np.array(img_list)
 print(array.shape)
+print('opp')
