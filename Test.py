@@ -2,7 +2,6 @@
 This is a test
 This also
 """
-Params= GetDefaultParameters()
 
 Params= GetDefaultParameters()
 

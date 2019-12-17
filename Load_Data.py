@@ -9,29 +9,24 @@ import sklearn as sk
 import pickle
 
 
-path_Yoav = r'C:\Users\BIGVU\Desktop\Yoav\University\visionProject\101_ObjectCategories'
-path_Gil = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
-files = os.listdir(path_Gil)[0:3]
+path = r'C:\Users\BIGVU\Desktop\Yoav\University\101_ObjectCategories'
+#path = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
+files = os.listdir(path_Yoav)[0:3]
 
 img_list = []
 for file in files:
-    newPath = path_Gil+"\\"+file
+    newPath = path+"\\"+file
     for img in glob.glob(newPath+"\\*.jpg"):
-        raw = cv2.imread(img)
+        raw = cv2.imread(img, 0)
         im_data = np.asarray(raw)
-        gray = cv2.cvtColor(im_data, cv2.COLOR_BGR2GRAY)
-        sized = cv2.resize(gray,(20,20))
+        #gray = cv2.cvtColor(im_data, cv2.COLOR_BGR2GRAY)
+        sized = cv2.resize(im_data,(200,200))
         img_list.append(sized)
 array = np.array(img_list)
 print(array.shape)
+plt.imshow(array[400, :, :], cmap='gray')
+plt.show()
 
-
-## SVM - linear kernel
-def SVM(C):
-
-def SVM_pol(degree):
-
-def SVM_RBF(gamma):
 
 
 
