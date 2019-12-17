@@ -5,13 +5,17 @@ import scipy.misc
 import os
 import glob
 import numpy as np
+import sklearn as sk
+import pickle
 
-path = r'C:\Users\BIGVU\Desktop\Yoav\University\visionProject\101_ObjectCategories'
-files = os.listdir(path)[0:3]
+
+path_Yoav = r'C:\Users\BIGVU\Desktop\Yoav\University\visionProject\101_ObjectCategories'
+path_Gil = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
+files = os.listdir(path_Gil)[0:3]
 
 img_list = []
 for file in files:
-    newPath = path+"\\"+file
+    newPath = path_Gil+"\\"+file
     for img in glob.glob(newPath+"\\*.jpg"):
         raw = cv2.imread(img)
         im_data = np.asarray(raw)
@@ -20,4 +24,14 @@ for file in files:
         img_list.append(sized)
 array = np.array(img_list)
 print(array.shape)
-print('opp')
+
+
+## SVM - linear kernel
+def SVM(C):
+
+def SVM_pol(degree):
+
+def SVM_RBF(gamma):
+
+
+

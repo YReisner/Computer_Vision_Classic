@@ -1,4 +1,4 @@
-import skimage.data as skid
+import skimage as skid
 import cv2
 import pylab as plt
 import scipy.misc
