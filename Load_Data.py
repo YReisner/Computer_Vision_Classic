@@ -11,8 +11,9 @@ import pickle
 
 path = r'C:\Users\BIGVU\Desktop\Yoav\University\101_ObjectCategories'
 #path = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
-files = os.listdir(path_Yoav)[0:3]
+files = os.listdir(path)[0:3]
 
+labels = []
 img_list = []
 for file in files:
     newPath = path+"\\"+file
@@ -22,11 +23,15 @@ for file in files:
         #gray = cv2.cvtColor(im_data, cv2.COLOR_BGR2GRAY)
         sized = cv2.resize(im_data,(200,200))
         img_list.append(sized)
+        labels.append(file)
 array = np.array(img_list)
+""" For Testing
 print(array.shape)
+print(len(labels))
+print(labels[50:60])
 plt.imshow(array[400, :, :], cmap='gray')
 plt.show()
-
+"""
 
 
 
