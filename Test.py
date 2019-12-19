@@ -10,7 +10,7 @@ DandL= GetData(Params[‘Data’])
 SplitData= TrainTestSplit( DandL[‘Data’], DandL[‘Labels’], Params[‘Split’])
 				 # returns train data, test data, train labels and test labels
 
-TrainDataRep = Prepare( SplitData[‘Train’][‘Data’], Params[‘Prepare’])
+TrainDataRep = prepare( SplitData[‘Train’][‘Data’], Params[‘Prepare’])
 
 Model =  Train(TrainDataRep, SplitData[‘Train’][‘Labels’] , Params[‘Train’])
 TestDataRep = Prepare(SplitData[‘Test’][‘Data’], Params[‘Preapare’])
