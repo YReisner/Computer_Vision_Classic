@@ -9,7 +9,7 @@ import sklearn as sk
 import pickle
 
 
-path = r'C:\Users\BIGVU\Desktop\Yoav\University\101_ObjectCategories'
+
 #path = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
 files = os.listdir(path)[0:3]
 
