@@ -10,7 +10,7 @@ import pickle
 
 
 
-#path = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
+path = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
 files = os.listdir(path)[0:3]
 
 labels = []
@@ -24,7 +24,9 @@ for file in files:
         sized = cv2.resize(im_data,(200,200))
         img_list.append(sized)
         labels.append(file)
+print(type(img_list))
 array = np.array(img_list)
+print(type(array))
 """ For Testing
 print(array.shape)
 print(len(labels))
