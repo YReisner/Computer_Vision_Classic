@@ -39,7 +39,12 @@ def load_data(path,imsize):
     # running on all  files and all images in every file
     for file in files:
         newPath = path + "\\" + file
-        for img in glob.glob(newPath + "\\*.jpg"):
+        images = glob.glob(newPath + "\\*.jpg")
+        if len(images) >= 40:
+            amount = 40
+        else:
+            amount = len(images)
+        for img in images[:amount]:
             raw = cv2.imread(img, 0) # returns an an array of the image in gray scale
             im_data = np.asarray(raw)
             sized = cv2.resize(im_data, imsize) # resizing the data
@@ -58,7 +63,35 @@ def train_test_split(data, labels, ratio):
     :return: Dictionary of train (data and labels) and test (data and labels)
     '''
     #We need to change this into a simply 20 - 20 split, instead of the function
-    X_train, X_test, y_train, y_test = sk.model_selection.train_test_split(data, labels, test_size=ratio, random_state=42)
+    unique_labels = set(labels)
+    count = [(item,labels.count(item)) for item in unique_labels] # This gives me the amount of images for each category
+    img_amount = dict(count) # This allows a convenient access to the image count
+    counter = 0 # Helper variable to go over the data vector
+    X_train = []
+    y_train = []
+    X_test = []
+    y_test = []
+    # Let's go over the data and labels vectors as long as we are not out of bounds
+    while counter < len(data):
+        # First 20 images goes to training
+        for num in range(20):
+            X_train.append(data[counter])
+            y_train.append(labels[counter])
+            counter += counter
+        # Check if we have 40 images for this category
+        if img_amount[labels[counter]] == 40:
+            img_left = 20  # If we do, we should have exactly 20 images left to collect
+        else:
+            img_left = img_amount[labels[counter]]-20  # If we don't, we'll collect what is left for testing
+        for num in range(img_left):
+            X_test.append(data[counter])
+            y_test.append(labels[counter])
+            counter += counter
+
+
+
+        
+    #X_train, X_test, y_train, y_test = sk.model_selection.train_tdest_split(data, labels, test_size=ratio, random_state=42)
     split_dict = {"Train": {'Data': X_train, 'Labels': y_train}, "Test": {'Data': X_test, 'Labels': y_test}}
     return split_dict
 
@@ -137,7 +170,7 @@ def test(model,test_data):
     :param test_data:
     :return:
     '''
-    predictions = model.predict(test_data) #computing the predictions from the model
+    predictions = model.predict(test_data['hists']) #computing the predictions from the model
     return predictions
 
 def evaluate(predicts, real, params):
