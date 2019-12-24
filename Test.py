@@ -121,7 +121,7 @@ def train_kmeans(data, params):
 
 
 
-def prepare(kmeans, data, labels, params):
+def prepare(kmeans, data, params):
     '''
 
     :param kmeans:
@@ -130,11 +130,8 @@ def prepare(kmeans, data, labels, params):
     :param params:
     :return:
     '''
-    org_data = list(zip(labels, data))  # Create a list of the labels and the suitable data
-    label_vec = [] # define a vector of labels
-    hist_vec = [] # define a vector of histograms
-    hist_dict = {} # define a dictionary of histograms
-    for label, img in org_data: # run on the org_data tuple
+    hist_vec = []  # define a vector of histograms
+    for img in data:  # run on the org_data tuple
         sift = cv2.xfeatures2d.SIFT_create() #############################
         step_size = params['step'] #use the step size as defined in params
         kp = [cv2.KeyPoint(x, y, step_size) for y in range(0, img.shape[0], step_size) for x in
@@ -143,17 +140,8 @@ def prepare(kmeans, data, labels, params):
         img_predicts = kmeans.predict(sifts) # compute  k-means predictions for the computed sifts
         img_hist, bin_size = np.histogram(img_predicts, bins=params['bins']) #compute histogram for each image's sifts by 'bins' parameter
         hist_vec.append(img_hist) # add the histogram to histograms vector
-        label_vec.append(label) # add the label to labels vector
-        img_hist = img_hist.reshape(1, params['bins']) #reshape the size of each histogram of each image
-        # fill the histogram dictionary with labels and historams
-        if label in hist_dict:
-            hist_dict[label] = np.append(hist_dict[label], img_hist, axis=0)
-        else:
-            hist_dict[label] = img_hist
-    print(len(hist_vec))
-    print(len(hist_vec[0]))
-    datarep = {"hists":hist_vec,"labels":label_vec} #####################
-    return datarep
+
+    return hist_vec
 
 def train(data, labels, params):
     '''
@@ -163,7 +151,7 @@ def train(data, labels, params):
     :param params:
     :return:
     '''
-    svm = SVC(C=params['svm_c'], kernel=params['kernel'], gamma=params['gamma']) # define the SVM parameters
+    svm = SVC(C=params['svm_c'], kernel=params['kernel'], gamma=params['gamma'],probability = True,random_state=42) # define the SVM parameters
     svm.fit(data, labels)  # fitting the SVM on the data
     return svm
 
@@ -174,15 +162,23 @@ def test(model,test_data):
     :param test_data:
     :return:
     '''
-    predictions = model.predict(test_data['hists']) #computing the predictions from the model
+    predictions = model.predict(test_data) #computing the predictions from the model
+    probabilities = model.predict_proba(test_data)
+    print(probabilities)
+    print("-------------")
     return predictions
 
 def evaluate(predicts, real, params):
-    accuracy = sk.metrics.accuracy_score(predicts, real)
-    return accuracy
 
-def reportResults(sum,params):
+    error = 1 - sk.metrics.accuracy_score(predicts, real)
+
+    cnf_mat = confusion_matrix(real, predicts)
+
+    return error,cnf_mat
+
+def reportResults(sum,conf,params):
     print(sum)
+    print(conf)
     return
 def conf_matrix(true_lable, predicted_lable):
     '''
@@ -195,7 +191,6 @@ def conf_matrix(true_lable, predicted_lable):
     return cnf_mat
 
 
-
 path = r'C:\Users\BIGVU\Desktop\Yoav\University\101_ObjectCategories'
 
 params = GetDefaultParameters()
@@ -206,13 +201,13 @@ SplitData = train_test_split(data, labels, params['Split'])
 # returns train data, test data, train labels and test labels
 
 kmeans_model = train_kmeans(SplitData['Train']['Data'], params['prepare'])
-TrainDataRep = prepare(kmeans_model, SplitData['Train']['Data'],SplitData['Train']['Labels'], params['prepare'])
+TrainDataRep = prepare(kmeans_model, SplitData['Train']['Data'], params['prepare'])
 # call make_hist on train data
-Model = train(TrainDataRep["hists"], SplitData['Train']['Labels'], params['train'])
-TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], SplitData['Test']['Labels'], params['prepare'])
+Model = train(TrainDataRep, SplitData['Train']['Labels'], params['train'])
+TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], params['prepare'])
 
 Results = test(Model, TestDataRep)
 
-Summary = evaluate(Results, SplitData['Test']['Labels'], [])
+Error,conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
 
-reportResults(Summary,[])
+reportResults(Error,conf_mat,[])
