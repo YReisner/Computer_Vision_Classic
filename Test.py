@@ -11,6 +11,8 @@ from sklearn.cluster import KMeans
 import pandas as pd
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+
 
 def GetDefaultParameters():
     image_size = (100,100)
@@ -21,9 +23,10 @@ def GetDefaultParameters():
     gamma = 'scale'
     step_size = 6
     bins = clusters
-    parameters = {"imsize":image_size,"Split":split,"prepare":{"clusters":clusters,"step":step_size,"bins":bins},
-              "train":{"svm_c":svm_c,"kernel":kernel,"gamma":gamma}}
+    validate = True
+    parameters = {"validate":validate,"imsize":image_size,"Split":split,"clusters":clusters,"step":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma}
     return parameters
+
 
 def load_data(path,imsize):
     '''
@@ -33,7 +36,7 @@ def load_data(path,imsize):
     :return: a dictionary of images raw data and its labels
     '''
 
-    files = os.listdir(path)[0:2] #get the first 10 files into files
+    files = os.listdir(path)[0:3] #get the first 10 files into files
     labels = []  # defining a list of labels
     img_list = []  # defining a list of images
     # running on all  files and all images in every file
@@ -53,6 +56,7 @@ def load_data(path,imsize):
     #img_array = np.array(img_list) # transfer the list to np.array
     #data = {'Data':img_array,"Labels":labels} # create a dict of images data and the labels
     return img_list,labels
+
 
 def train_test_split(data, labels, ratio):
     '''
@@ -120,7 +124,6 @@ def train_kmeans(data, params):
     return kmeans
 
 
-
 def prepare(kmeans, data, params):
     '''
 
@@ -143,6 +146,7 @@ def prepare(kmeans, data, params):
 
     return hist_vec
 
+
 def train(data, labels, params):
     '''
     Train the model with SVM
@@ -155,18 +159,19 @@ def train(data, labels, params):
     svm.fit(data, labels)  # fitting the SVM on the data
     return svm
 
+
 def test(model,test_data):
     '''
 
     :param model:
     :param test_data:
-    :return:
+    :return:`q
     '''
     predictions = model.predict(test_data) #computing the predictions from the model
     probabilities = model.predict_proba(test_data)
-    print(probabilities)
-    print("-------------")
+
     return predictions
+
 
 def evaluate(predicts, real, params):
 
@@ -176,38 +181,69 @@ def evaluate(predicts, real, params):
 
     return error,cnf_mat
 
-def reportResults(sum,conf,params):
-    print(sum)
+
+def reportResults(error,conf,params):
+
+    print(error)
     print(conf)
     return
-def conf_matrix(true_lable, predicted_lable):
-    '''
 
-    :param true_lable:
-    :param predicted_lable:
-    :return:
-    '''
-    cnf_mat = confusion_matrix(true_lable, predicted_lable)
-    return cnf_mat
+def validation(params,param_to_validate,possible_values):
+    train_errors = []
+    val_errors = []
+    for value in possible_values:
+        params[param_to_validate] = value
+        data, labels = load_data(path, params['imsize'])
 
+        SplitData = train_test_split(data, labels, params['Split'])
+        # returns train data, test data, train labels and test labels
+
+        kmeans_model = train_kmeans(SplitData['Train']['Data'], params)
+        TrainDataRep = prepare(kmeans_model, SplitData['Train']['Data'], params)
+        # call make_hist on train data
+
+        Model = train(TrainDataRep, SplitData['Train']['Labels'], params)
+        train_predicts = Model.predict(TrainDataRep)
+        train_errors.append(1 - sk.metrics.accuracy_score(train_predicts, SplitData['Train']['Labels']))
+        TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], params)
+
+        Results = test(Model, TestDataRep)
+
+        Error, conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
+        reportResults(Error, conf_mat, [])
+        val_errors.append(Error)
+    print("The best error is %f, using the value %d, for parameter %s" %(min(val_errors),possible_values[val_errors.index(min(val_errors))],param_to_validate))
+    plt.plot(possible_values,val_errors)
+    plt.plot(possible_values, train_errors)
+    plt.xlabel(param_to_validate)
+    plt.ylabel("Prediction Error")
+    plt.show()
+    return
+
+np.random.seed(42)
 
 path = r'C:\Users\BIGVU\Desktop\Yoav\University\101_ObjectCategories'
 
 params = GetDefaultParameters()
 
-data,labels = load_data(path,params['imsize'])
+if not params['validate']:
 
-SplitData = train_test_split(data, labels, params['Split'])
+    data,labels = load_data(path,params['imsize'])
+
+    SplitData = train_test_split(data, labels, params['Split'])
 # returns train data, test data, train labels and test labels
 
-kmeans_model = train_kmeans(SplitData['Train']['Data'], params['prepare'])
-TrainDataRep = prepare(kmeans_model, SplitData['Train']['Data'], params['prepare'])
+    kmeans_model = train_kmeans(SplitData['Train']['Data'], params)
+    TrainDataRep = prepare(kmeans_model, SplitData['Train']['Data'], params)
 # call make_hist on train data
-Model = train(TrainDataRep, SplitData['Train']['Labels'], params['train'])
-TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], params['prepare'])
+    Model = train(TrainDataRep, SplitData['Train']['Labels'], params)
+    TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], params)
 
-Results = test(Model, TestDataRep)
+    Results = test(Model, TestDataRep)
 
-Error,conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
+    Error,conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
 
-reportResults(Error,conf_mat,[])
+    reportResults(Error,conf_mat,[])
+
+else:
+    validation(params,'svm_c',(0.001,0.005,0.01,0.5,0.1,0.5,1,10))
