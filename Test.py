@@ -24,7 +24,7 @@ def GetDefaultParameters():
     step_size = 6
     bins = clusters
     validate = True
-    parameters = {"validate":validate,"imsize":image_size,"Split":split,"clusters":clusters,"step":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma}
+    parameters = {"validate":validate,"image_size":image_size,"Split":split,"clusters":clusters,"step_size":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma}
     return parameters
 
 
@@ -36,7 +36,7 @@ def load_data(path,imsize):
     :return: a dictionary of images raw data and its labels
     '''
 
-    files = os.listdir(path)[0:3] #get the first 10 files into files
+    files = os.listdir(path)[0:10] #get the first 10 files into files
     labels = []  # defining a list of labels
     img_list = []  # defining a list of images
     # running on all  files and all images in every file
@@ -107,7 +107,7 @@ def train_kmeans(data, params):
     sift_vec = []  # define a list of sift
     for img in data:
         sift = cv2.xfeatures2d.SIFT_create() #############################
-        step_size = params['step'] #use the step size as defined in params
+        step_size = params['step_size'] #use the step size as defined in params
         kp = [cv2.KeyPoint(x, y, step_size) for y in range(0, img.shape[0], step_size) for x in
               range(0, img.shape[1], step_size)] # compute key points
         points, sifts = sift.compute(img, kp) #compute sifts from key points
@@ -136,7 +136,7 @@ def prepare(kmeans, data, params):
     hist_vec = []  # define a vector of histograms
     for img in data:  # run on the org_data tuple
         sift = cv2.xfeatures2d.SIFT_create() #############################
-        step_size = params['step'] #use the step size as defined in params
+        step_size = params['step_size'] #use the step size as defined in params
         kp = [cv2.KeyPoint(x, y, step_size) for y in range(0, img.shape[0], step_size) for x in
                 range(0, img.shape[1], step_size)]  # compute key points
         points, sifts = sift.compute(img, kp) #compute sifts from key points
@@ -193,7 +193,7 @@ def validation(params,param_to_validate,possible_values):
     val_errors = []
     for value in possible_values:
         params[param_to_validate] = value
-        data, labels = load_data(path, params['imsize'])
+        data, labels = load_data(path, params['image_size'])
 
         SplitData = train_test_split(data, labels, params['Split'])
         # returns train data, test data, train labels and test labels
@@ -212,11 +212,14 @@ def validation(params,param_to_validate,possible_values):
         Error, conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
         reportResults(Error, conf_mat, [])
         val_errors.append(Error)
-    print("The best error is %f, using the value %d, for parameter %s" %(min(val_errors),possible_values[val_errors.index(min(val_errors))],param_to_validate))
-    plt.plot(possible_values,val_errors)
-    plt.plot(possible_values, train_errors)
+    print("The best error is %f, using the value %f, for parameter %s" %(min(val_errors),possible_values[val_errors.index(min(val_errors))],param_to_validate))
+
+    plt.plot(possible_values,val_errors,label = 'Validation')
+    plt.plot(possible_values, train_errors,label = 'Training')
     plt.xlabel(param_to_validate)
     plt.ylabel("Prediction Error")
+    plt.title("Error as a function of %s" %(param_to_validate))
+    plt.legend(loc='upper right')
     plt.show()
     return
 
@@ -228,7 +231,7 @@ params = GetDefaultParameters()
 
 if not params['validate']:
 
-    data,labels = load_data(path,params['imsize'])
+    data,labels = load_data(path,params['image_size'])
 
     SplitData = train_test_split(data, labels, params['Split'])
 # returns train data, test data, train labels and test labels
@@ -246,4 +249,4 @@ if not params['validate']:
     reportResults(Error,conf_mat,[])
 
 else:
-    validation(params,'svm_c',(0.001,0.005,0.01,0.5,0.1,0.5,1,10))
+    validation(params,'svm_c',(1,10,100))
