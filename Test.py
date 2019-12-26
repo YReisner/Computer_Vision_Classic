@@ -7,7 +7,7 @@ import glob
 import numpy as np
 import sklearn as sk
 import pickle
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 import pandas as pd
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
@@ -15,20 +15,21 @@ import matplotlib.pyplot as plt
 
 
 def GetDefaultParameters():
-    image_size = (100,100)
+    class_indices = [0,1,2,3,4,5,6,7,8,9]
+    image_size = (150,150)
     split = 0.2
-    clusters = 500
-    svm_c = 1
+    clusters = 40
+    svm_c = 0.0001
     kernel = 'linear'
     gamma = 'scale'
     step_size = 6
     bins = clusters
-    validate = True
-    parameters = {"validate":validate,"image_size":image_size,"Split":split,"clusters":clusters,"step_size":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma}
+    validate = False
+    parameters = {"class_indices":class_indices,"validate":validate,"image_size":image_size,"Split":split,"clusters":clusters,"step_size":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma}
     return parameters
 
 
-def load_data(path,imsize):
+def load_data(path,params):
     '''
     Loads the data
     :param path: data location on the PC
@@ -36,11 +37,12 @@ def load_data(path,imsize):
     :return: a dictionary of images raw data and its labels
     '''
 
-    files = os.listdir(path)[0:10] #get the first 10 files into files
+    files = os.listdir(path)  # get the files
+    classes = [files[i] for i in params['class_indices']]
     labels = []  # defining a list of labels
     img_list = []  # defining a list of images
     # running on all  files and all images in every file
-    for file in files:
+    for file in classes:
         newPath = path + "\\" + file
         images = glob.glob(newPath + "\\*.jpg")
         if len(images) >= 40:
@@ -50,11 +52,12 @@ def load_data(path,imsize):
         for img in images[:amount]:
             raw = cv2.imread(img, 0)  # returns an an array of the image in gray scale
             im_data = np.asarray(raw)
-            sized = cv2.resize(im_data, imsize)  # resizing the data
+            sized = cv2.resize(im_data, params["image_size"])  # resizing the data
             img_list.append(sized) # add it to list of the images
             labels.append(file)   # add the image label to th list of labels
     #img_array = np.array(img_list) # transfer the list to np.array
     #data = {'Data':img_array,"Labels":labels} # create a dict of images data and the labels
+    print("Data loading complete!")
     return img_list,labels
 
 
@@ -118,8 +121,9 @@ def train_kmeans(data, params):
     for value in sift_vec[1:]:
         all_sifts_array = np.append(all_sifts_array, value, axis=0)
     # compute and return k_means
-    model = KMeans(n_clusters=params["clusters"],  random_state=42)   # define the kmeans model parameters
+    model = MiniBatchKMeans(n_clusters=params["clusters"],  random_state=42,batch_size=400)   # define the kmeans model parameters
     kmeans = model.fit(all_sifts_array) # fit the model on the sift and compute the kmeans
+    print('Kmeans trained!')
 
     return kmeans
 
@@ -157,6 +161,7 @@ def train(data, labels, params):
     '''
     svm = SVC(C=params['svm_c'], kernel=params['kernel'], gamma=params['gamma'],probability = True,random_state=42) # define the SVM parameters
     svm.fit(data, labels)  # fitting the SVM on the data
+    print('SVM Trained!')
     return svm
 
 
@@ -189,13 +194,16 @@ def reportResults(error,conf,params):
     return
 
 def validation(params,param_to_validate,possible_values):
+
+    # Help variables to garner errors for each iteration
     train_errors = []
     val_errors = []
+    data, labels = load_data(path, params)
+    SplitData = train_test_split(data, labels, params['Split'])
     for value in possible_values:
-        params[param_to_validate] = value
-        data, labels = load_data(path, params['image_size'])
+        params[param_to_validate] = value  # Change default value of tuned parameter to the one we want to check
 
-        SplitData = train_test_split(data, labels, params['Split'])
+
         # returns train data, test data, train labels and test labels
 
         kmeans_model = train_kmeans(SplitData['Train']['Data'], params)
@@ -203,15 +211,22 @@ def validation(params,param_to_validate,possible_values):
         # call make_hist on train data
 
         Model = train(TrainDataRep, SplitData['Train']['Labels'], params)
-        train_predicts = Model.predict(TrainDataRep)
-        train_errors.append(1 - sk.metrics.accuracy_score(train_predicts, SplitData['Train']['Labels']))
+        train_predicts = Model.predict(TrainDataRep) # Predict on the training set
+
+        train_error = 1 - sk.metrics.accuracy_score(train_predicts, SplitData['Train']['Labels']) # Compute error
+        print("current train error is %f" %(train_error))  # sanity check
+        train_errors.append(train_error)  # Append training errors
+
         TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], params)
 
         Results = test(Model, TestDataRep)
 
         Error, conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
         reportResults(Error, conf_mat, [])
-        val_errors.append(Error)
+
+        val_errors.append(Error) # Append the current validation error for the current value
+
+    # After checking all values - print the best error, value and for what parameter and plot a graph.
     print("The best error is %f, using the value %f, for parameter %s" %(min(val_errors),possible_values[val_errors.index(min(val_errors))],param_to_validate))
 
     plt.plot(possible_values,val_errors,label = 'Validation')
@@ -231,7 +246,7 @@ params = GetDefaultParameters()
 
 if not params['validate']:
 
-    data,labels = load_data(path,params['image_size'])
+    data,labels = load_data(path,params)
 
     SplitData = train_test_split(data, labels, params['Split'])
 # returns train data, test data, train labels and test labels
@@ -249,4 +264,4 @@ if not params['validate']:
     reportResults(Error,conf_mat,[])
 
 else:
-    validation(params,'svm_c',(1,10,100))
+    validation(params,'svm_c',(10**-3,10**-1,10))
