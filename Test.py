@@ -11,21 +11,23 @@ from sklearn.cluster import MiniBatchKMeans
 import pandas as pd
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
+import seaborn as sns
 import matplotlib.pyplot as plt
-
+from more_itertools import unique_everseen
 
 def GetDefaultParameters():
-    class_indices = [0,1,2,3,4,5,6,7,8,9]
+    class_indices = [10,11,12,13,14,15,16,17,18,19]
     image_size = (150,150)
     split = 0.2
     clusters = 40
-    svm_c = 0.0001
+    svm_c = 200
+    degree = 3
     kernel = 'linear'
-    gamma = 'scale'
+    gamma = 5
     step_size = 6
     bins = clusters
     validate = False
-    parameters = {"class_indices":class_indices,"validate":validate,"image_size":image_size,"Split":split,"clusters":clusters,"step_size":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma}
+    parameters = {"class_indices":class_indices,"validate":validate,"image_size":image_size,"Split":split,"clusters":clusters,"step_size":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma,'degree':degree}
     return parameters
 
 
@@ -38,7 +40,7 @@ def load_data(path,params):
     '''
 
     files = os.listdir(path)  # get the files
-    classes = [files[i] for i in params['class_indices']]
+    classes = [files[i] for i in params['class_indices']]  # Classes we choose for this run
     labels = []  # defining a list of labels
     img_list = []  # defining a list of images
     # running on all  files and all images in every file
@@ -121,7 +123,7 @@ def train_kmeans(data, params):
     for value in sift_vec[1:]:
         all_sifts_array = np.append(all_sifts_array, value, axis=0)
     # compute and return k_means
-    model = MiniBatchKMeans(n_clusters=params["clusters"],  random_state=42,batch_size=400)   # define the kmeans model parameters
+    model = MiniBatchKMeans(n_clusters=params["clusters"],  random_state=42,batch_size=params['clusters']*4)   # define the kmeans model parameters
     kmeans = model.fit(all_sifts_array) # fit the model on the sift and compute the kmeans
     print('Kmeans trained!')
 
@@ -146,7 +148,8 @@ def prepare(kmeans, data, params):
         points, sifts = sift.compute(img, kp) #compute sifts from key points
         img_predicts = kmeans.predict(sifts) # compute  k-means predictions for the computed sifts
         img_hist, bin_size = np.histogram(img_predicts, bins=params['bins']) #compute histogram for each image's sifts by 'bins' parameter
-        hist_vec.append(img_hist) # add the histogram to histograms vector
+        normalized_hist = img_hist/sum(img_hist)
+        hist_vec.append(normalized_hist) # add the histogram to histograms vector
 
     return hist_vec
 
@@ -159,7 +162,7 @@ def train(data, labels, params):
     :param params:
     :return:
     '''
-    svm = SVC(C=params['svm_c'], kernel=params['kernel'], gamma=params['gamma'],probability = True,random_state=42) # define the SVM parameters
+    svm = SVC(C=params['svm_c'], kernel=params['kernel'], gamma=params['gamma'],degree=params['degree'],probability = True,random_state=42) # define the SVM parameters
     svm.fit(data, labels)  # fitting the SVM on the data
     print('SVM Trained!')
     return svm
@@ -175,35 +178,108 @@ def test(model,test_data):
     predictions = model.predict(test_data) #computing the predictions from the model
     probabilities = model.predict_proba(test_data)
 
-    return predictions
+    return predictions,probabilities
 
 
-def evaluate(predicts, real, params):
+def evaluate(predicts, probabilities, real, params):
 
-    error = 1 - sk.metrics.accuracy_score(predicts, real)
+    error = 1 - sk.metrics.accuracy_score(predicts, real) # Compute error
 
-    cnf_mat = confusion_matrix(real, predicts)
+    cnf_mat = confusion_matrix(real, predicts, list(unique_everseen(real)),normalize=True)  # Create confusion matrix
+
+    # Create helper dict to access correct column in probabilities
+    class_ind_dict = {real[0]:0}
+    count = 1
+    for i in list(range(1,len(real))):
+        if real[i] != real[i-1]:
+            class_ind_dict[real[i]] = count
+            count += 1
+
+    images_loc = []
+
+    # Let's find the two worst pictures
+    temporary_count = 3  # Help Variable
+
+    if probabilities[0][class_ind_dict[real[0]]] > probabilities[1][class_ind_dict[real[1]]]:
+        lowest = probabilities[1][class_ind_dict[real[1]]]
+        second = probabilities[0][class_ind_dict[real[0]]]
+        lowest_loc = 2
+        second_loc = 1
+    else:
+        lowest = probabilities[0][class_ind_dict[real[0]]]
+        second = probabilities[1][class_ind_dict[real[1]]]
+        lowest_loc = 1
+        second_loc = 2
+    for i in list(range(2,len(real))):
+        if real[i] == real[i-1]:
+            if probabilities[i][class_ind_dict[real[i]]] < lowest:
+                second = lowest
+                second_loc = lowest_loc
+                lowest = probabilities[i][class_ind_dict[real[i]]]
+                lowest_loc = temporary_count
+
+            elif probabilities[i][class_ind_dict[real[i]]] == lowest:
+                continue
+
+            elif probabilities[i][class_ind_dict[real[i]]] < second:
+                second = probabilities[i][class_ind_dict[real[i]]]
+                second_loc = temporary_count
+
+            temporary_count += 1
+        else:
+            images_loc.append(lowest_loc+20)
+            images_loc.append(second_loc+20)
+            temporary_count = 3
+            if probabilities[i][class_ind_dict[real[i]]] > probabilities[i+1][class_ind_dict[real[i+1]]]:
+                lowest = probabilities[i+1][class_ind_dict[real[i+1]]]
+                second = probabilities[i][class_ind_dict[real[i]]]
+                lowest_loc = 2
+                second_loc = 1
+            else:
+                lowest = probabilities[i][class_ind_dict[real[i]]]
+                second = probabilities[i+1][class_ind_dict[real[i+1]]]
+                lowest_loc = 1
+                second_loc = 2
+    images_loc.append(lowest_loc + 20)
+    images_loc.append(second_loc + 20)
+    print(images_loc)
+
 
     return error,cnf_mat
 
 
-def reportResults(error,conf,params):
+def reportResults(error,conf,labels):
 
     print(error)
     print(conf)
     return
+'''
+    df_cm = pd.DataFrame(conf, index=list(unique_everseen(labels)), columns=list(unique_everseen(labels)),)
+    col_sum = df_cm.sum(axis=1)
+    df_cm = df_cm.div(col_sum,axis = 0)
+    plt.figure(figsize=(20,20))
+    heatmap = sns.heatmap(df_cm, annot=True)
+    heatmap.yaxis.set_ticklabels(heatmap.yaxis.get_ticklabels(), rotation=0, ha='right', fontsize=8)
+    heatmap.xaxis.set_ticklabels(heatmap.xaxis.get_ticklabels(), rotation=45, ha='right', fontsize=8)
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.title("Confusion Matrix, Normalized")
+    plt.show()
+'''
+
 
 def validation(params,param_to_validate,possible_values):
 
     # Help variables to garner errors for each iteration
     train_errors = []
     val_errors = []
-    data, labels = load_data(path, params)
-    SplitData = train_test_split(data, labels, params['Split'])
+
     for value in possible_values:
         params[param_to_validate] = value  # Change default value of tuned parameter to the one we want to check
+        params['bins'] = value
 
-
+        data, labels = load_data(path, params)
+        SplitData = train_test_split(data, labels, params['Split'])
         # returns train data, test data, train labels and test labels
 
         kmeans_model = train_kmeans(SplitData['Train']['Data'], params)
@@ -219,15 +295,15 @@ def validation(params,param_to_validate,possible_values):
 
         TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], params)
 
-        Results = test(Model, TestDataRep)
+        Results, probabilities = test(Model, TestDataRep)
 
-        Error, conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
+        Error, conf_mat = evaluate(Results,probabilities, SplitData['Test']['Labels'], [])
         reportResults(Error, conf_mat, [])
 
         val_errors.append(Error) # Append the current validation error for the current value
 
     # After checking all values - print the best error, value and for what parameter and plot a graph.
-    print("The best error is %f, using the value %f, for parameter %s" %(min(val_errors),possible_values[val_errors.index(min(val_errors))],param_to_validate))
+    print("The best error is %f, using the value %d, for parameter %s" %(min(val_errors),possible_values[val_errors.index(min(val_errors))],param_to_validate))
 
     plt.plot(possible_values,val_errors,label = 'Validation')
     plt.plot(possible_values, train_errors,label = 'Training')
@@ -257,11 +333,11 @@ if not params['validate']:
     Model = train(TrainDataRep, SplitData['Train']['Labels'], params)
     TestDataRep = prepare(kmeans_model, SplitData['Test']['Data'], params)
 
-    Results = test(Model, TestDataRep)
+    Results,probabilities = test(Model, TestDataRep)
 
-    Error,conf_mat = evaluate(Results, SplitData['Test']['Labels'], [])
+    Error,conf_mat = evaluate(Results,probabilities, SplitData['Test']['Labels'], [])
 
-    reportResults(Error,conf_mat,[])
+    reportResults(Error,conf_mat,SplitData['Test']['Labels'])
 
 else:
-    validation(params,'svm_c',(10**-3,10**-1,10))
+    validation(params,'clusters',(40,80,100,150,200,250,300,350,400,450,500,550,600))

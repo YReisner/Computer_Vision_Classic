@@ -7,20 +7,19 @@ import os
 import glob
 
 path = r'C:\Users\BIGVU\Desktop\Yoav\University\101_ObjectCategories'
-file = os.listdir(path)[0]
+file = os.listdir(path)[17]
 newPath = path+"\\"+file
 images = glob.glob(newPath+"\\*.jpg")
 
-img = cv2.imread(images[6], 0)
+img = cv2.imread(images[30], 0)
 #img = scipy.misc.face()
 #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-sized = cv2.resize(img, (80,80))
+sized = cv2.resize(img, (150,150))
 gray = sized
 
-plt.figure(figsize=(80,80))
-plt.imshow(img,cmap='gray')
+plt.imshow(gray,cmap='gray')
 plt.show()
-
+'''
 sift = cv2.xfeatures2d.SIFT_create()
 
 step_size = 6
@@ -35,3 +34,4 @@ plt.show()
 
 dense_feat = sift.compute(gray, kp)
 print(dense_feat[1].shape)
+'''
