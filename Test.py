@@ -6,7 +6,6 @@ import os
 import glob
 import numpy as np
 import sklearn as sk
-import pickle
 from sklearn.cluster import MiniBatchKMeans
 import pandas as pd
 from sklearn.svm import SVC
