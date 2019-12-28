@@ -14,34 +14,50 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from more_itertools import unique_everseen
 
+'''
+Dear user of this code,
+
+We have written this code so that the only changes that need to be made are inside the function "GetDefaultParameters" 
+just below this message. 
+Please change "path" to your directory of the file "101_ObjectCategories"
+Also, please change "class_indices" to the relevant category index you want the model to train and test on. 
+Otherwise, nothing is supposed to be changed. 
+Please take into consideration that if "validate" is true, a cross validation process will begin on the parameter 
+and with the values mentioned at the call to the validation function. Also, if validate is true, a confusion matrix will 
+not be plotted nicely at the end of the process, instead, a hyper-parameter tuning graph will be plotted. 
+
+'''
+
+
 def GetDefaultParameters():
     '''
     Create a dictionary of parameters which will be used along the process
     :return: Dictionary of parameters
     '''
+    path = r'C:\Users\BIGVU\Desktop\Yoav\University\101_ObjectCategories'
     class_indices = [10,11,12,13,14,15,16,17,18,19]
     image_size = (150,150)
     split = 0.2
     clusters = 40
     svm_c = 200
     degree = 3
-    kernel = 'linear'
+    kernel = 'rbf'
     gamma = 5
     step_size = 6
     bins = clusters
     validate = False
-    parameters = {"class_indices":class_indices,"validate":validate,"image_size":image_size,"Split":split,"clusters":clusters,"step_size":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma,'degree':degree}
+    parameters = {"path":path,"class_indices":class_indices,"validate":validate,"image_size":image_size,"Split":split,"clusters":clusters,"step_size":step_size,"bins":bins, "svm_c":svm_c,"kernel":kernel,"gamma":gamma,'degree':degree}
     return parameters
 
 
-def load_data(path,params):
+def load_data(params):
     '''
     Loads the data
     :param path: data location on the PC
     :param params: desired size measure for all images
     :return: list of images raw data and list of its labels
     '''
-
+    path = params['path']
     files = os.listdir(path)  # get the files
     classes = [files[i] for i in params['class_indices']]  # Classes we choose for this run
     labels = []  # defining a list of labels
@@ -255,32 +271,33 @@ def evaluate(predicts, probabilities, real):
     return error,cnf_mat
 
 
-def reportResults(error,conf):
+def reportResults(error,conf,params):
     '''
     prints the test error and confusion matrix
     :param error: the error between the predictions and real
     :param conf: confusion matrix
-    :return:
+    :return: Does not return anything
     '''
 
     print(error)
     print(conf)
-    return
 
-# visualization of the confusion matrix
-'''
-    df_cm = pd.DataFrame(conf, index=list(unique_everseen(labels)), columns=list(unique_everseen(labels)),)
-    col_sum = df_cm.sum(axis=1)
-    df_cm = df_cm.div(col_sum,axis = 0)
-    plt.figure(figsize=(20,20))
-    heatmap = sns.heatmap(df_cm, annot=True)
-    heatmap.yaxis.set_ticklabels(heatmap.yaxis.get_ticklabels(), rotation=0, ha='right', fontsize=8)
-    heatmap.xaxis.set_ticklabels(heatmap.xaxis.get_ticklabels(), rotation=45, ha='right', fontsize=8)
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    plt.title("Confusion Matrix, Normalized")
-    plt.show()
-'''
+
+# visualization of the confusion matrix if not doing hyper-parameter tuning
+    if not params['validate']:
+        df_cm = pd.DataFrame(conf, index=list(unique_everseen(labels)), columns=list(unique_everseen(labels)),)
+        col_sum = df_cm.sum(axis=1)
+        df_cm = df_cm.div(col_sum,axis = 0)
+        plt.figure(figsize=(20,20))
+        heatmap = sns.heatmap(df_cm, annot=True)
+        heatmap.yaxis.set_ticklabels(heatmap.yaxis.get_ticklabels(), rotation=0, ha='right', fontsize=8)
+        heatmap.xaxis.set_ticklabels(heatmap.xaxis.get_ticklabels(), rotation=45, ha='right', fontsize=8)
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label')
+        plt.title("Confusion Matrix, Normalized")
+        plt.show()
+
+    return
 
 
 def validation(params,param_to_validate,possible_values):
@@ -288,8 +305,8 @@ def validation(params,param_to_validate,possible_values):
     execution of the validation process
     :param params: dictionary of parameters
     :param param_to_validate: a hyper parameter which we want to examine
-    :param possible_values: the hyper parameter range of values we wants to examine
-    :return:
+    :param possible_values: the hyper parameter range of values we wants to examine in an iterable object
+    :return: Does not return anything
     '''
 
 
@@ -301,7 +318,7 @@ def validation(params,param_to_validate,possible_values):
         params[param_to_validate] = value  # Change default value of tuned parameter to the one we want to check
         params['bins'] = value
 
-        data, labels = load_data(path, params) #loads the data
+        data, labels = load_data(params) #loads the data
 
         SplitData = train_test_split(data, labels) # returns train data, test data, train labels and test labels
 
@@ -321,7 +338,7 @@ def validation(params,param_to_validate,possible_values):
         Results, probabilities = test(Model, TestDataRep)
 
         Error, conf_mat = evaluate(Results,probabilities, SplitData['Test']['Labels'])
-        reportResults(Error, conf_mat)
+        reportResults(Error, conf_mat,params)
 
         val_errors.append(Error) # Append the current validation error for the current value
 
@@ -339,13 +356,11 @@ def validation(params,param_to_validate,possible_values):
 
 np.random.seed(42)
 
-path = r'C:\Users\gilei\Desktop\comp\Computer_Vision_Classic-master\101_ObjectCategories'
-
 params = GetDefaultParameters()
 
 if not params['validate']: # in case of validation check isnt required perform the following
 
-    data,labels = load_data(path,params) #loads the data
+    data,labels = load_data(params) #loads the data
 
     SplitData = train_test_split(data, labels)# returns train data, test data, train labels and test labels
 
@@ -362,7 +377,7 @@ if not params['validate']: # in case of validation check isnt required perform t
     Error,conf_mat = evaluate(Results,probabilities, SplitData['Test']['Labels']) # evaluate the error and the confusion matrix.
                         # and also prints a list of the locations of the two largest errors on images of each class
 
-    reportResults(Error,conf_mat) #prints the error and the confusion matrix
+    reportResults(Error,conf_mat,params) #prints the error and the confusion matrix
 
 else:
-    validation(params,'clusters',(40,80,100,150,200,250,300,350,400,450,500,550,600)) #in case of validation check is required
+    validation(params,'clusters',(40,80,300)) #in case of validation check is required
